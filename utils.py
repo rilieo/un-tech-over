@@ -115,38 +115,3 @@ def add_polygon_borders(fig, gdf, name):
         ))
 
     return fig
-
-def add_geotiff_heatmap_mapbox(tiff_path, opacity=0.6):
-    fig = go.Figure()
-    with rio.open(tiff_path) as src:
-        if src.crs.to_string() != "EPSG:4326":
-            raise ValueError("GeoTIFF must be in EPSG:4326 CRS")
-
-        data = src.read(1)
-        bounds = src.bounds  # left, bottom, right, top
-
-        # Normalize to 0-255 uint8
-        norm = (255 * (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))).astype(np.uint8)
-        img = Image.fromarray(norm).convert("L").convert("RGBA")
-
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        b64 = base64.b64encode(buf.getvalue()).decode()
-
-        fig.update_layout(
-            mapbox_layers=[
-                {
-                    "sourcetype": "raster",
-                    "source": [f"data:image/png;base64,{b64}"],
-                    "coordinates": [
-                        [bounds.left, bounds.top],     # NW
-                        [bounds.right, bounds.top],    # NE
-                        [bounds.right, bounds.bottom], # SE
-                        [bounds.left, bounds.bottom],  # SW
-                    ],
-                    "opacity": opacity,
-                    "below": "traces"
-                }
-            ]
-        )
-    return fig

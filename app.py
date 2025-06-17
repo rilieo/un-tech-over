@@ -3,7 +3,6 @@ import geopandas as gpd
 import plotly.graph_objects as go
 import plotly.express as px
 from utils import calculate_effect, add_polygon_borders, add_geotiff_heatmap_mapbox, handle_tiff
-import rasterio as rio
 
 def reset():
     layers["Factors"] = None
@@ -99,7 +98,7 @@ if border_file and hurricane_file and factors_file:
 
     st.plotly_chart(fig_map, use_container_width=True)
 
-    #Read the GeoTIFF
+    # Read the GeoTIFF files
     for i, col in enumerate(st.columns(num_images)):
         # Plot as heatmap
         heatmap = px.imshow(layers["Images"][i], color_continuous_scale="gray")
