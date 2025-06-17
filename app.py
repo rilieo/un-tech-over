@@ -2,7 +2,7 @@ import streamlit as st
 import geopandas as gpd
 import plotly.graph_objects as go
 import plotly.express as px
-from utils import calculate_effect, add_polygon_borders, add_geotiff_heatmap_mapbox
+from utils import calculate_effect, add_polygon_borders, add_geotiff_heatmap_mapbox, handle_tiff
 import rasterio as rio
 
 def reset():
@@ -16,14 +16,16 @@ layers = {
     "Borders": None,
     "Hurricanes": None,
     "Factors": None,
+    "Images": []
 }
 # Colors for factors trace
 colors = ["green", "blue", "black"]
+titles = ["Population Density", "Wind", "Wind"]
 color_idx = 0
+num_images = 0
 
 if "uploader_key" not in st.session_state:
     st.session_state["uploader_key"] = 1
-
 
 # Form for uploads and action
 with st.form("weather_map_form"):
@@ -37,19 +39,21 @@ with st.form("weather_map_form"):
 
     left, right = st.columns(2)
     factors_file = left.file_uploader("Factors of Impact", type=["geojson", "json"], key=st.session_state["uploader_key"])
-    images_file = right.file_uploader("Image Tiff", type=["tif", "geotiff", "tiff"], key="images")
+    images_files = right.file_uploader("Image Tiff", type=["tif", "geotiff", "tiff"], key="images", accept_multiple_files=True)
     clear = st.form_submit_button(label="Clear Factors of Impact", on_click=reset)
 
     if factors_file:
         layers["Factors"] = gpd.read_file(factors_file)
-    if images_file:
-        layers["Images"] = "data/" + images_file.name
+    if images_files:
+        for image in images_files:
+            layers["Images"].append(handle_tiff("data/" + image.name))
+            num_images += 1
     
     submitted = st.form_submit_button("Generate Map")
 
-# Only plot if form is submitted
+# Only plot if form is submitted and files are uploaded
 if border_file and hurricane_file and factors_file:
-    fig_map = add_geotiff_heatmap_mapbox(layers["images"])
+    fig_map = go.Figure()
 
     for name, gdf in layers.items():
         if gdf is not None:
@@ -75,7 +79,7 @@ if border_file and hurricane_file and factors_file:
         layers["Factors"]
     )
 
-    st.subheader("Summary of Impacted Schools")
+    st.subheader("Summary")
     st.dataframe(affected_df)
 
     if not affected_df.empty:
@@ -93,16 +97,12 @@ if border_file and hurricane_file and factors_file:
             name="School Impact"
         ))
 
-    st.markdown("#")
-
-    chart_left, chart_right = st.columns(2)
+    st.plotly_chart(fig_map, use_container_width=True)
 
     #Read the GeoTIFF
-    with rio.open('data/nic_ppp_2020_UNadj_constrained.tif') as src:
-        image = src.read(1)  # Read the first band
-
+    for i, col in enumerate(st.columns(num_images)):
         # Plot as heatmap
-        heatmap = px.imshow(image, color_continuous_scale='gray')
+        heatmap = px.imshow(layers["Images"][i], color_continuous_scale="gray")
         heatmap.update_xaxes(showticklabels=False)
         heatmap.update_yaxes(showticklabels=False)
         heatmap.update_layout(
@@ -113,6 +113,6 @@ if border_file and hurricane_file and factors_file:
             ),
             margin={"r": 0, "t": 0, "l": 0, "b": 0, "pad": 0
         })
-        chart_left.plotly_chart(heatmap)
+        col.plotly_chart(heatmap)
 
-    chart_right.plotly_chart(fig_map, use_container_width=True)
+    st.markdown("#")

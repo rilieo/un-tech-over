@@ -83,6 +83,12 @@ def handle_geo(file_path) -> gpd.GeoDataFrame:
     elif ext == '.kml':
         return gpd.read_file(file_path)
 
+def handle_tiff(file_path):
+    with rio.open(file_path) as src:
+        image = src.read(1)  # Read the first band
+
+        return image
+
 # Add borders given coordinates
 def add_polygon_borders(fig, gdf, name):
     if name == "Borders":
